@@ -302,6 +302,15 @@
   };
   const SCOPE_LABEL = { national: "National", city: "Kolkata-specific" };
 
+  // How often to re-fetch gold_rate_data.json while the tab stays open.
+  // Only applies to the live-fetch path -- see the fetchLiveData() call site.
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Chart.js instance, tracked so a periodic re-render can destroy the old
+  // one first -- calling `new Chart()` again on the same canvas without
+  // destroying the previous instance throws ("Canvas is already in use").
+  let chartInstance = null;
+
   function cssVar(name) {
     const root = document.querySelector(".viz-root");
     return getComputedStyle(root).getPropertyValue(name).trim();
@@ -363,7 +372,11 @@
       },
     };
 
-    new Chart(document.getElementById("rate-chart"), {
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    chartInstance = new Chart(document.getElementById("rate-chart"), {
       type: "bar",
       data: {
         labels,
@@ -479,12 +492,35 @@
     }
   }
 
-  fetch("gold_rate_data.json", { cache: "no-store" })
-    .then((r) => {
+  function fetchLiveData() {
+    // Cache-bust two ways: a timestamp query param (defeats any CDN/proxy
+    // that caches by exact URL -- GitHub Pages sits behind one, and a plain
+    // fetch() can otherwise return a stale copy for a short window after a
+    // new deploy) and { cache: "no-store" } (defeats the browser's own HTTP
+    // cache). Belt and suspenders, since the two caches are independent.
+    return fetch(`gold_rate_data.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
+    });
+  }
+
+  fetchLiveData()
+    .then((data) => {
+      render(data, { fromFallback: false });
+      // Auto-refresh only runs down this success path -- the file://
+      // fallback below never reaches here, so a static snapshot stays
+      // static (fetch() on file:// fails every time anyway, so polling it
+      // would just be wasted retries).
+      setInterval(() => {
+        fetchLiveData()
+          .then((data) => render(data, { fromFallback: false }))
+          .catch(() => {
+            // A transient failure on a periodic refresh isn't fatal --
+            // keep showing the last successfully-fetched data and let the
+            // next tick try again.
+          });
+      }, REFRESH_INTERVAL_MS);
     })
-    .then((data) => render(data, { fromFallback: false }))
     .catch(() => {
       const fallback = loadEmbeddedFallback();
       if (fallback) {
