@@ -290,32 +290,37 @@ def extract_goodreturns_22k_per_gram(page, debug=False):
 
 # =============================================================================
 # GoldPriceIndia (Kolkata) -- verified against live rendered DOM. Uses the
-# city-specific page (not the homepage, which only shows the all-India MCX
-# average).
+# city-specific page per the original request, but see the KNOWN ISSUE below:
+# that page's city panel turned out not to be genuinely city-specific.
 # =============================================================================
 
 GOLDPRICEINDIA_URL = "https://www.goldpriceindia.com/gold-price-kolkata.php"
 
 
 def extract_goldpriceindia_22k_per_gram(page, debug=False):
-    """The page has a "22 Karat Gold Price in Kolkata" panel with an explicit
-    "<price> - gold price per gram" row -- already per-gram, no conversion
-    needed. This panel's figure (also repeated in the page's "LIVE" summary
-    sentence and a day-over-day table) is the live-quoted rate; a separate
-    "calculator" table elsewhere on the page computes 22K as a flat 22/24
-    purity ratio of the 24K price and reads slightly differently (e.g.
-    ₹1,292 vs the live ₹1,342 seen when this was written) -- we deliberately
-    target the labelled live panel, not the calculator, since the page
-    itself calls the panel figure "LIVE" and "Today".
+    """The page has a "22 Karat Gold Price in Kolkata" panel with two rows:
+    "<price> - gold price per gram" and "<price> - gold price per 10 grams".
 
-    KNOWN ISSUE (as of this writing): this page's own numbers read ~10x lower
-    than every other source here for BOTH 22K and 24K (e.g. ₹1,342/g here vs
-    ~₹13,200+/g everywhere else), consistently across repeated fetches. That
-    smells like a stale/mis-scaled price feed on GoldPriceIndia's end, not a
-    selector bug -- the extraction matches exactly what the page displays.
-    Flagged via the ADDITIONAL_SOURCES note so it's visible in the output
-    rather than silently shown as equivalent to the other sources. If
-    GoldPriceIndia fixes their feed, remove that note.
+    KNOWN ISSUE, root-caused by cross-checking against the site's own other
+    pages (not guessed): the row labelled "per gram" is under-scaled by
+    ~10x on this specific city panel. Evidence:
+      - goldpriceindia.com's HOMEPAGE has a correctly-scaled *national*
+        "22 Karat Gold Price in India" panel (e.g. ₹13,138/gram) that lines
+        up with every other source in this script.
+      - This Kolkata panel's "per gram" row (e.g. ₹1,342) is ~1/10th of that
+        national figure, while its own "per 10 grams" row in the SAME panel
+        (e.g. ₹13,425) lines up with the national per-gram figure almost
+        exactly. So on this panel specifically, the row labelled "per 10
+        grams" is the one that's actually correct at per-gram magnitude.
+      - Checking gold-price-mumbai.php and gold-price-chennai.php: both show
+        the *exact same* "per gram" figure as Kolkata (₹1,342, identical to
+        the decimal). So this city panel isn't genuinely city-differentiated
+        data at all -- it reads the same everywhere, just scaled 10x low.
+
+    We therefore read the "per 10 grams" row and use its number AS the
+    per-gram figure (no arithmetic -- picking the row that already carries
+    the right magnitude), and flag via the ADDITIONAL_SOURCES note that this
+    isn't genuinely Kolkata-specific despite the source page's name.
     """
     page.wait_for_selector("h2.panel-title", state="visible", timeout=SELECTOR_TIMEOUT_MS)
 
@@ -328,7 +333,7 @@ def extract_goldpriceindia_22k_per_gram(page, debug=False):
     matched_text = None
     price = None
     if panel_text:
-        m = re.search(r"₹\s*([\d,]+)\s*-\s*gold price per gram", panel_text, re.IGNORECASE)
+        m = re.search(r"₹\s*([\d,]+)\s*-\s*gold price per 10 grams", panel_text, re.IGNORECASE)
         if m:
             matched_text = m.group(0)
             price = int(m.group(1).replace(",", ""))
@@ -341,13 +346,13 @@ def extract_goldpriceindia_22k_per_gram(page, debug=False):
         )
         if m:
             matched_text = m.group(0)
-            price = int(m.group(1).replace(",", "")) / 10
+            price = int(m.group(1).replace(",", ""))
 
     if debug:
         print(f"[DEBUG][GoldPriceIndia] matched text: {matched_text!r}")
 
     if price is None:
-        raise ValueError("Could not find a 22 Karat per-gram rate on the GoldPriceIndia page.")
+        raise ValueError("Could not find a 22 Karat rate on the GoldPriceIndia page.")
 
     return price
 
@@ -365,7 +370,7 @@ ADDITIONAL_SOURCES = (
         "GoldPriceIndia",
         GOLDPRICEINDIA_URL,
         extract_goldpriceindia_22k_per_gram,
-        "reads ~10x lower than other sources -- likely a site-side issue",
+        "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages",
     ),
 )
 

@@ -255,13 +255,13 @@
 -->
 <script type="application/json" id="embedded-data">
 {
-  "timestamp": "08-Jul-2026 05:25 PM",
+  "timestamp": "08-Jul-2026 05:48 PM",
   "sources": [
     { "name": "Tanishq", "rate_per_gram": 13165, "note": null, "scope": "national" },
     { "name": "ABP Live", "rate_per_gram": 13260.1, "note": "converted from per-10g", "scope": "city" },
     { "name": "Times of India", "rate_per_gram": 13245, "note": null, "scope": "city" },
     { "name": "Goodreturns", "rate_per_gram": 13245, "note": null, "scope": "city" },
-    { "name": "GoldPriceIndia", "rate_per_gram": 1342, "note": "reads ~10x lower than other sources -- likely a site-side issue", "scope": "city" }
+    { "name": "GoldPriceIndia", "rate_per_gram": 13425, "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages", "scope": "city" }
   ]
 }
 </script>
@@ -335,7 +335,7 @@
         chart.getDatasetMeta(0).data.forEach((bar, i) => {
           ctx.save();
           ctx.fillStyle = textPrimary;
-          ctx.font = "600 16px system-ui, -apple-system, 'Segoe UI', sans-serif";
+          ctx.font = "700 22px system-ui, -apple-system, 'Segoe UI', sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "bottom";
           ctx.fillText(formatRupees(values[i]), bar.x, bar.y - 8);
@@ -354,25 +354,22 @@
             data: values,
             backgroundColor: bg,
             hoverBackgroundColor: bgHover,
-            borderRadius: 4,
+            borderRadius: 6,
             borderSkipped: "bottom",
-            maxBarThickness: 24,
+            maxBarThickness: 46,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 24 } },
+        layout: { padding: { top: 32 } },
         plugins: {
           legend: { display: false },
-          title: {
-            display: true,
-            text: `As of ${data.timestamp}${fromFallback ? " (embedded snapshot)" : ""}`,
-            color: textMuted,
-            font: { size: 15, weight: "normal" },
-            padding: { bottom: 14 },
-          },
+          // No internal chart title -- it duplicated the "Last updated" line
+          // already shown in the page header right above this card, so it's
+          // dropped to make room for the larger bars/labels below.
+          title: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => `₹${Math.round(ctx.parsed.y).toLocaleString("en-IN")} / gram`,
@@ -387,7 +384,7 @@
           x: {
             grid: { display: false },
             border: { color: baseline },
-            ticks: { color: textPrimary, font: { size: 15 } },
+            ticks: { color: textPrimary, font: { size: 19, weight: "600" } },
           },
           y: {
             beginAtZero: false,
@@ -396,13 +393,13 @@
               display: true,
               text: "₹ per gram",
               color: textMuted,
-              font: { size: 14 },
+              font: { size: 13 },
             },
             grid: { color: gridline, drawTicks: false },
             border: { display: false },
             ticks: {
               color: textMuted,
-              font: { size: 13 },
+              font: { size: 12 },
               callback: (v) => v.toLocaleString("en-IN"),
             },
           },
