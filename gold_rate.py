@@ -1,6 +1,7 @@
 """
-Fetch today's 22K gold rate (per gram, in INR) from Tanishq, plus two
-Kolkata-specific sources: ABP Live and Times of India.
+Fetch today's 22K gold rate (per gram, in INR) from Tanishq, plus four
+Kolkata-specific sources: ABP Live, Times of India, Goodreturns, and
+GoldPriceIndia.
 
 The Tanishq page is rendered client-side (Salesforce Commerce Cloud
 storefront), and the site fronts requests with Cloudflare Bot Management,
@@ -50,6 +51,8 @@ SOURCE_SCOPE = {
     "Tanishq": "national",
     "ABP Live": "city",
     "Times of India": "city",
+    "Goodreturns": "city",
+    "GoldPriceIndia": "city",
 }
 
 # =============================================================================
@@ -246,6 +249,110 @@ def extract_toi_22k_per_gram(page, debug=False):
 
 
 # =============================================================================
+# Goodreturns (Kolkata) -- verified against live rendered DOM
+# =============================================================================
+
+GOODRETURNS_URL = "https://www.goodreturns.in/gold-rates/kolkata.html"
+
+
+def extract_goodreturns_22k_per_gram(page, debug=False):
+    """Goodreturns has a price card labelled "22K Gold /g":
+        <p class="gold-common-head">22K&nbsp;Gold&nbsp;<span>/g</span></p>
+        <span id="22K-price">₹13,245</span>
+    The "/g" label confirms this is already per-gram (verified directly on
+    the page) -- no conversion needed. Note the id can't be used as a plain
+    "#22K-price" CSS selector (IDs can't start with a digit unescaped), so
+    we select on the attribute instead.
+    """
+    id_selector = '[id="22K-price"]'
+    page.wait_for_selector(id_selector, state="visible", timeout=SELECTOR_TIMEOUT_MS)
+    el = page.query_selector(id_selector)
+    matched_text = el.inner_text() if el else None
+    price = _parse_price(matched_text) if matched_text else None
+
+    if price is None:
+        # Text-based fallback: the page's own intro sentence, e.g.
+        # "...₹13,245 per gram for 22 karat gold (91.6% purity)...".
+        body_text = page.inner_text("body")
+        m = re.search(r"₹\s*([\d,]+)\s*per gram for 22 karat gold", body_text, re.IGNORECASE)
+        if m:
+            matched_text = m.group(0)
+            price = int(m.group(1).replace(",", ""))
+
+    if debug:
+        print(f"[DEBUG][Goodreturns] matched text: {matched_text!r}")
+
+    if price is None:
+        raise ValueError("Could not find a 22K rate on the Goodreturns page.")
+
+    return price
+
+
+# =============================================================================
+# GoldPriceIndia (Kolkata) -- verified against live rendered DOM. Uses the
+# city-specific page (not the homepage, which only shows the all-India MCX
+# average).
+# =============================================================================
+
+GOLDPRICEINDIA_URL = "https://www.goldpriceindia.com/gold-price-kolkata.php"
+
+
+def extract_goldpriceindia_22k_per_gram(page, debug=False):
+    """The page has a "22 Karat Gold Price in Kolkata" panel with an explicit
+    "<price> - gold price per gram" row -- already per-gram, no conversion
+    needed. This panel's figure (also repeated in the page's "LIVE" summary
+    sentence and a day-over-day table) is the live-quoted rate; a separate
+    "calculator" table elsewhere on the page computes 22K as a flat 22/24
+    purity ratio of the 24K price and reads slightly differently (e.g.
+    ₹1,292 vs the live ₹1,342 seen when this was written) -- we deliberately
+    target the labelled live panel, not the calculator, since the page
+    itself calls the panel figure "LIVE" and "Today".
+
+    KNOWN ISSUE (as of this writing): this page's own numbers read ~10x lower
+    than every other source here for BOTH 22K and 24K (e.g. ₹1,342/g here vs
+    ~₹13,200+/g everywhere else), consistently across repeated fetches. That
+    smells like a stale/mis-scaled price feed on GoldPriceIndia's end, not a
+    selector bug -- the extraction matches exactly what the page displays.
+    Flagged via the ADDITIONAL_SOURCES note so it's visible in the output
+    rather than silently shown as equivalent to the other sources. If
+    GoldPriceIndia fixes their feed, remove that note.
+    """
+    page.wait_for_selector("h2.panel-title", state="visible", timeout=SELECTOR_TIMEOUT_MS)
+
+    panel_text = None
+    for heading in page.query_selector_all("h2.panel-title"):
+        if re.search(r"22\s*(karat|carat)", heading.inner_text(), re.IGNORECASE):
+            panel_text = heading.evaluate("el => el.closest('.panel')?.innerText || ''")
+            break
+
+    matched_text = None
+    price = None
+    if panel_text:
+        m = re.search(r"₹\s*([\d,]+)\s*-\s*gold price per gram", panel_text, re.IGNORECASE)
+        if m:
+            matched_text = m.group(0)
+            price = int(m.group(1).replace(",", ""))
+
+    if price is None:
+        # Text-based fallback: the "LIVE ... 22 karat ... per 10 grams" sentence.
+        body_text = page.inner_text("body")
+        m = re.search(
+            r"22 karat gold is ₹\s*([\d,]+)\s*rupees per 10 grams", body_text, re.IGNORECASE
+        )
+        if m:
+            matched_text = m.group(0)
+            price = int(m.group(1).replace(",", "")) / 10
+
+    if debug:
+        print(f"[DEBUG][GoldPriceIndia] matched text: {matched_text!r}")
+
+    if price is None:
+        raise ValueError("Could not find a 22 Karat per-gram rate on the GoldPriceIndia page.")
+
+    return price
+
+
+# =============================================================================
 # Orchestration
 # =============================================================================
 
@@ -253,6 +360,13 @@ def extract_toi_22k_per_gram(page, debug=False):
 ADDITIONAL_SOURCES = (
     ("ABP Live", ABP_URL, extract_abp_22k_per_gram, "converted from per-10g"),
     ("Times of India", TOI_URL, extract_toi_22k_per_gram, None),
+    ("Goodreturns", GOODRETURNS_URL, extract_goodreturns_22k_per_gram, None),
+    (
+        "GoldPriceIndia",
+        GOLDPRICEINDIA_URL,
+        extract_goldpriceindia_22k_per_gram,
+        "reads ~10x lower than other sources -- likely a site-side issue",
+    ),
 )
 
 
@@ -277,7 +391,7 @@ def fetch_source_price(url, extractor, debug=False):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Fetch the 22K gold rate per gram from Tanishq and two Kolkata sources."
+        description="Fetch the 22K gold rate per gram from Tanishq and four Kolkata sources."
     )
     parser.add_argument(
         "--debug",
@@ -340,8 +454,8 @@ def main():
             print(f"{padded_label} : ₹{price:,.0f}{suffix}")
     print()
     print(
-        "Note: Tanishq shows a national rate (not city-specific); "
-        "ABP Live and Times of India are Kolkata-specific."
+        "Note: Tanishq shows a national rate (not city-specific); ABP Live, "
+        "Times of India, Goodreturns, and GoldPriceIndia are Kolkata-specific."
     )
 
     # --- Also write results to JSON for gold_dashboard.html (additive; the

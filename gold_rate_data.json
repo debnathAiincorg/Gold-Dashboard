@@ -1,9 +1,9 @@
 {
-  "timestamp": "08-Jul-2026 10:53 AM",
+  "timestamp": "08-Jul-2026 05:32 PM",
   "sources": [
     {
       "name": "Tanishq",
-      "rate_per_gram": 13290,
+      "rate_per_gram": 13165,
       "note": null,
       "scope": "national"
     },
@@ -17,6 +17,18 @@
       "name": "Times of India",
       "rate_per_gram": 13245,
       "note": null,
+      "scope": "city"
+    },
+    {
+      "name": "Goodreturns",
+      "rate_per_gram": 13245,
+      "note": null,
+      "scope": "city"
+    },
+    {
+      "name": "GoldPriceIndia",
+      "rate_per_gram": 1342,
+      "note": "reads ~10x lower than other sources -- likely a site-side issue",
       "scope": "city"
     }
   ]

@@ -24,6 +24,10 @@
     --series-abp-hover: #a53a4c;
     --series-toi: #2a5fa5;
     --series-toi-hover: #3f72b8;
+    --series-goodreturns: #2e7d32;
+    --series-goodreturns-hover: #43974a;
+    --series-goldpriceindia: #6a3fa0;
+    --series-goldpriceindia-hover: #8058b4;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -41,6 +45,10 @@
       --series-abp-hover: #d66c80;
       --series-toi: #4c82c4;
       --series-toi-hover: #6396d3;
+      --series-goodreturns: #47a34b;
+      --series-goodreturns-hover: #5cb860;
+      --series-goldpriceindia: #9b6fd1;
+      --series-goldpriceindia-hover: #ac86da;
     }
   }
 
@@ -85,12 +93,12 @@
   header h1 {
     font-size: 1.8rem;
     font-weight: 600;
-    margin: 0 0 4px;
+    margin: 0 0 2px;
   }
   header .subtitle {
     color: var(--text-secondary);
     font-size: 1.35rem;
-    margin: 0 0 8px;
+    margin: 0 0 4px;
   }
 
   .notice {
@@ -103,7 +111,7 @@
     padding: 8px 14px;
     font-size: 0.95rem;
     color: var(--text-secondary);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   .notice code {
     background: var(--page-plane);
@@ -116,18 +124,18 @@
     background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 14px 20px;
-    margin-bottom: 10px;
+    padding: 10px 18px;
+    margin-bottom: 8px;
   }
   .card h2 {
     font-size: 1.2rem;
     font-weight: 600;
-    margin: 0 0 2px;
+    margin: 0 0 1px;
   }
   .card .card-caption {
     color: var(--text-muted);
     font-size: 0.95rem;
-    margin: 0 0 8px;
+    margin: 0 0 4px;
   }
 
   /* The chart card is the one flexible element: it grows to fill leftover
@@ -146,7 +154,7 @@
   .chart-wrap {
     position: relative;
     flex: 1 1 auto;
-    min-height: 190px;
+    min-height: 150px;
   }
 
   table {
@@ -156,7 +164,7 @@
   }
   th, td {
     text-align: left;
-    padding: 7px 10px;
+    padding: 5px 8px;
     border-bottom: 1px solid var(--gridline);
   }
   th {
@@ -184,15 +192,15 @@
   .note {
     display: block;
     color: var(--text-muted);
-    font-size: 0.85rem;
-    margin-top: 1px;
+    font-size: 0.8rem;
+    margin-top: 0;
   }
 
   footer.footnote {
     flex: 0 0 auto;
     color: var(--text-muted);
-    font-size: 0.9rem;
-    line-height: 1.35;
+    font-size: 0.85rem;
+    line-height: 1.3;
   }
 
   .empty-state {
@@ -247,11 +255,13 @@
 -->
 <script type="application/json" id="embedded-data">
 {
-  "timestamp": "08-Jul-2026 03:23 PM",
+  "timestamp": "08-Jul-2026 05:25 PM",
   "sources": [
-    { "name": "Tanishq", "rate_per_gram": 13290, "note": null, "scope": "national" },
+    { "name": "Tanishq", "rate_per_gram": 13165, "note": null, "scope": "national" },
     { "name": "ABP Live", "rate_per_gram": 13260.1, "note": "converted from per-10g", "scope": "city" },
-    { "name": "Times of India", "rate_per_gram": 13245, "note": null, "scope": "city" }
+    { "name": "Times of India", "rate_per_gram": 13245, "note": null, "scope": "city" },
+    { "name": "Goodreturns", "rate_per_gram": 13245, "note": null, "scope": "city" },
+    { "name": "GoldPriceIndia", "rate_per_gram": 1342, "note": "reads ~10x lower than other sources -- likely a site-side issue", "scope": "city" }
   ]
 }
 </script>
@@ -268,6 +278,8 @@
     "Tanishq": { base: "--series-tanishq", hover: "--series-tanishq-hover" },
     "ABP Live": { base: "--series-abp", hover: "--series-abp-hover" },
     "Times of India": { base: "--series-toi", hover: "--series-toi-hover" },
+    "Goodreturns": { base: "--series-goodreturns", hover: "--series-goodreturns-hover" },
+    "GoldPriceIndia": { base: "--series-goldpriceindia", hover: "--series-goldpriceindia-hover" },
   };
   const SCOPE_LABEL = { national: "National", city: "Kolkata-specific" };
 
@@ -437,8 +449,8 @@
     });
 
     document.getElementById("footnote").textContent =
-      "Tanishq reflects a national rate, not city-specific; ABP Live and Times " +
-      "of India report Kolkata-specific rates from their own data feeds, so " +
+      "Tanishq reflects a national rate, not city-specific; the other four " +
+      "sources report Kolkata-specific rates from their own data feeds, so " +
       "figures are not expected to match exactly.";
   }
 
