@@ -1,0 +1,425 @@
+<title>22K Gold Rate Dashboard</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    /* Reference palette, light mode -- validated with scripts/validate_palette.js
+       (all six checks pass; see conversation for the run). Defined at :root
+       (not .viz-root) so both `body` and `.viz-root` can see them -- CSS
+       custom properties only inherit downward. */
+    --surface-1: #fcfcfb;
+    --page-plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.1);
+    /* Categorical slots, fixed order, assigned by source name (never by
+       array position) so identity survives a source dropping out. */
+    --series-tanishq: #b8860b;
+    --series-tanishq-hover: #cb9b27;
+    --series-abp: #8e2439;
+    --series-abp-hover: #a53a4c;
+    --series-toi: #2a5fa5;
+    --series-toi-hover: #3f72b8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1: #1a1a19;
+      --page-plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --gridline: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255, 255, 255, 0.1);
+      --series-tanishq: #b08326;
+      --series-tanishq-hover: #c99a3a;
+      --series-abp: #c9536a;
+      --series-abp-hover: #d66c80;
+      --series-toi: #4c82c4;
+      --series-toi-hover: #6396d3;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body { padding: 24px 16px 48px; }
+
+  .viz-root {
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  header .subtitle {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin: 0 0 20px;
+  }
+
+  .notice {
+    display: none;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--series-abp);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+  }
+  .notice code {
+    background: var(--page-plane);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .card .card-caption {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    margin: 0 0 16px;
+  }
+
+  .chart-wrap {
+    position: relative;
+    height: 320px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--gridline);
+  }
+  th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  td.num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .source-cell { display: flex; align-items: center; }
+  .note {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    margin-top: 2px;
+  }
+
+  footer.footnote {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .empty-state {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+</style>
+
+<div class="viz-root">
+  <header>
+    <h1>22K Gold Rate (per gram)</h1>
+    <p class="subtitle" id="subtitle">Loading&hellip;</p>
+  </header>
+
+  <div class="notice" id="fallback-notice"></div>
+
+  <section class="card">
+    <h2>Rate comparison</h2>
+    <p class="card-caption">₹ per gram, by source</p>
+    <div class="chart-wrap">
+      <canvas id="rate-chart"></canvas>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Summary</h2>
+    <p class="card-caption">Same figures as the chart, in table form</p>
+    <table id="summary-table">
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Coverage</th>
+          <th style="text-align: right">₹ / gram</th>
+        </tr>
+      </thead>
+      <tbody id="summary-body"></tbody>
+    </table>
+  </section>
+
+  <footer class="footnote" id="footnote"></footer>
+</div>
+
+<!--
+  Embedded fallback snapshot, used only if fetch('gold_rate_data.json') fails
+  -- normally just when this file is opened directly (file://) instead of via
+  the hosted GitHub Pages URL. This is a point-in-time snapshot and will NOT
+  auto-update; the live, always-current version is served from GitHub Pages
+  (see LIVE_PAGES_URL below / README.md), where the fetch() works normally
+  over HTTPS. Placed before the main script so it's guaranteed to be in the
+  DOM before any fetch().catch() can run (fetch on file:// rejects fast
+  enough to otherwise race parsing).
+-->
+<script type="application/json" id="embedded-data">
+{
+  "timestamp": "08-Jul-2026 03:23 PM",
+  "sources": [
+    { "name": "Tanishq", "rate_per_gram": 13290, "note": null, "scope": "national" },
+    { "name": "ABP Live", "rate_per_gram": 13260.1, "note": "converted from per-10g", "scope": "city" },
+    { "name": "Times of India", "rate_per_gram": 13245, "note": null, "scope": "city" }
+  ]
+}
+</script>
+
+<script>
+  // Hosted GitHub Pages URL, shown in the fallback notice below when this
+  // file is opened directly instead of via Pages. Update if the repo/Pages
+  // path ever changes.
+  const LIVE_PAGES_URL = "https://debnathaiincorg.github.io/Gold-Dashboard/gold_dashboard.html";
+
+  // Fixed categorical color per source name -- never by array position, so
+  // identity holds even if a source is missing from a given run's JSON.
+  const SOURCE_COLOR = {
+    "Tanishq": { base: "--series-tanishq", hover: "--series-tanishq-hover" },
+    "ABP Live": { base: "--series-abp", hover: "--series-abp-hover" },
+    "Times of India": { base: "--series-toi", hover: "--series-toi-hover" },
+  };
+  const SCOPE_LABEL = { national: "National", city: "Kolkata-specific" };
+
+  function cssVar(name) {
+    const root = document.querySelector(".viz-root");
+    return getComputedStyle(root).getPropertyValue(name).trim();
+  }
+
+  function formatRupees(n) {
+    return "₹" + Math.round(n).toLocaleString("en-IN");
+  }
+
+  function render(data, { fromFallback } = {}) {
+    document.getElementById("subtitle").textContent =
+      `Last updated: ${data.timestamp}` + (fromFallback ? " (embedded snapshot)" : "");
+
+    const notice = document.getElementById("fallback-notice");
+    if (fromFallback) {
+      notice.style.display = "block";
+      notice.innerHTML =
+        "Could not fetch <code>gold_rate_data.json</code> live (browsers block " +
+        "local-file fetches for security), so this is showing a snapshot " +
+        "embedded when the dashboard was built -- it may be stale. This page " +
+        "is designed to be served via GitHub Pages, where the live fetch " +
+        "works normally. For current data, open the hosted version instead: " +
+        `<a href="${LIVE_PAGES_URL}">${LIVE_PAGES_URL}</a>.`;
+    }
+
+    const sources = data.sources || [];
+    if (sources.length === 0) {
+      document.querySelector(".chart-wrap").innerHTML =
+        '<p class="empty-state">No source data available in gold_rate_data.json.</p>';
+      document.getElementById("summary-body").innerHTML =
+        '<tr><td colspan="3" class="empty-state">No data.</td></tr>';
+      return;
+    }
+
+    // --- Chart -----------------------------------------------------------
+    const labels = sources.map((s) => s.name);
+    const values = sources.map((s) => s.rate_per_gram);
+    const bg = sources.map((s) => cssVar(SOURCE_COLOR[s.name]?.base || "--series-toi"));
+    const bgHover = sources.map((s) => cssVar(SOURCE_COLOR[s.name]?.hover || "--series-toi-hover"));
+    const textPrimary = cssVar("--text-primary");
+    const textMuted = cssVar("--text-muted");
+    const gridline = cssVar("--gridline");
+    const baseline = cssVar("--baseline");
+
+    // Draws the value on the cap of each bar -- "Columns -> value on the cap".
+    const valueLabelPlugin = {
+      id: "valueLabels",
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        chart.getDatasetMeta(0).data.forEach((bar, i) => {
+          ctx.save();
+          ctx.fillStyle = textPrimary;
+          ctx.font = "600 13px system-ui, -apple-system, 'Segoe UI', sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(formatRupees(values[i]), bar.x, bar.y - 8);
+          ctx.restore();
+        });
+      },
+    };
+
+    new Chart(document.getElementById("rate-chart"), {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "₹ per gram",
+            data: values,
+            backgroundColor: bg,
+            hoverBackgroundColor: bgHover,
+            borderRadius: 4,
+            borderSkipped: "bottom",
+            maxBarThickness: 24,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: `As of ${data.timestamp}${fromFallback ? " (embedded snapshot)" : ""}`,
+            color: textMuted,
+            font: { size: 12, weight: "normal" },
+            padding: { bottom: 12 },
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `₹${Math.round(ctx.parsed.y).toLocaleString("en-IN")} / gram`,
+              afterLabel: (ctx) => {
+                const s = sources[ctx.dataIndex];
+                return SCOPE_LABEL[s.scope] ? `(${SCOPE_LABEL[s.scope]})` : "";
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { color: baseline },
+            ticks: { color: textPrimary, font: { size: 13 } },
+          },
+          y: {
+            beginAtZero: false,
+            grace: "10%",
+            title: { display: true, text: "₹ per gram", color: textMuted },
+            grid: { color: gridline, drawTicks: false },
+            border: { display: false },
+            ticks: {
+              color: textMuted,
+              callback: (v) => v.toLocaleString("en-IN"),
+            },
+          },
+        },
+      },
+      plugins: [valueLabelPlugin],
+    });
+
+    // --- Table -------------------------------------------------------------
+    const tbody = document.getElementById("summary-body");
+    tbody.innerHTML = "";
+    sources.forEach((s) => {
+      const tr = document.createElement("tr");
+
+      const sourceTd = document.createElement("td");
+      const wrap = document.createElement("span");
+      wrap.className = "source-cell";
+      const dot = document.createElement("span");
+      dot.className = "swatch";
+      dot.style.background = cssVar(SOURCE_COLOR[s.name]?.base || "--series-toi");
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = s.name; // textContent -- source names are untrusted data
+      wrap.appendChild(dot);
+      wrap.appendChild(nameSpan);
+      sourceTd.appendChild(wrap);
+      if (s.note) {
+        const noteEl = document.createElement("span");
+        noteEl.className = "note";
+        noteEl.textContent = s.note;
+        sourceTd.appendChild(noteEl);
+      }
+
+      const scopeTd = document.createElement("td");
+      scopeTd.textContent = SCOPE_LABEL[s.scope] || s.scope || "—";
+
+      const rateTd = document.createElement("td");
+      rateTd.className = "num";
+      rateTd.textContent = formatRupees(s.rate_per_gram);
+
+      tr.appendChild(sourceTd);
+      tr.appendChild(scopeTd);
+      tr.appendChild(rateTd);
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("footnote").textContent =
+      "Tanishq reflects a national rate, not city-specific; ABP Live and Times " +
+      "of India report Kolkata-specific rates from their own data feeds, so " +
+      "figures are not expected to match exactly.";
+  }
+
+  function loadEmbeddedFallback() {
+    const el = document.getElementById("embedded-data");
+    if (!el) return null;
+    try {
+      return JSON.parse(el.textContent);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  fetch("gold_rate_data.json", { cache: "no-store" })
+    .then((r) => {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    })
+    .then((data) => render(data, { fromFallback: false }))
+    .catch(() => {
+      const fallback = loadEmbeddedFallback();
+      if (fallback) {
+        render(fallback, { fromFallback: true });
+      } else {
+        document.getElementById("subtitle").textContent = "Could not load data.";
+        document.querySelector(".chart-wrap").innerHTML =
+          '<p class="empty-state">Could not fetch gold_rate_data.json and no embedded fallback was found.</p>';
+      }
+    });
+</script>

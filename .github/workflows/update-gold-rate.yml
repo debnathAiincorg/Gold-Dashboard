@@ -1,0 +1,79 @@
+name: Update Gold Rate Data
+
+# Triggered externally (by Power Automate) via a repository_dispatch POST to
+# the GitHub REST API with event_type "update-gold-rate" -- see README.md for
+# the exact request. workflow_dispatch is also enabled so it can be run
+# manually from the Actions tab for testing.
+on:
+  repository_dispatch:
+    types: [update-gold-rate]
+  workflow_dispatch: {}
+
+# Needed so the final step can push the updated gold_rate_data.json back to
+# this repo using the automatically-provided GITHUB_TOKEN (no extra secret).
+permissions:
+  contents: write
+
+# Prevent two overlapping runs (e.g. a manual test firing while Power
+# Automate's scheduled call is also running) from racing on the git push.
+concurrency:
+  group: update-gold-rate
+  cancel-in-progress: false
+
+jobs:
+  update-gold-rate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright's Chromium browser
+        run: playwright install --with-deps chromium
+
+      - name: Run gold_rate.py
+        id: run_script
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          set -o pipefail
+          python gold_rate.py | tee gold_rate_output.txt
+
+      - name: Explain failure (script exited non-zero)
+        if: failure() && steps.run_script.outcome == 'failure'
+        run: |
+          echo "::error::gold_rate.py failed -- this means ALL sources failed in this run (the script only exits non-zero when every source errors). Common causes: a site changed its markup and broke a selector, or GitHub Actions' shared IP range got blocked by a site's bot protection (Cloudflare/Akamai are often more aggressive against datacenter IPs than a residential dev machine). Check the 'Run gold_rate.py' step's log above for the specific per-source error messages, fix the affected selector if needed, then re-run via workflow_dispatch."
+
+      - name: Surface partial per-source failures as warnings
+        if: always() && steps.run_script.outcome == 'success'
+        shell: bash
+        run: |
+          if [ -f gold_rate_output.txt ] && grep -q "ERROR -" gold_rate_output.txt; then
+            echo "::warning::gold_rate.py succeeded overall, but one or more sources failed this run (gold_rate_data.json will be missing them). Details:"
+            grep "ERROR -" gold_rate_output.txt | while IFS= read -r line; do
+              echo "::warning::$line"
+            done
+          fi
+
+      # Skipped entirely if the script failed outright, so a total outage
+      # doesn't overwrite the last known-good data with an empty result.
+      - name: Commit and push gold_rate_data.json if changed
+        if: steps.run_script.outcome == 'success'
+        run: |
+          git config user.name "gold-rate-bot"
+          git config user.email "gold-rate-bot@users.noreply.github.com"
+          if git diff --quiet -- gold_rate_data.json; then
+            echo "No changes to gold_rate_data.json -- nothing to commit."
+          else
+            git add gold_rate_data.json
+            git commit -m "Update gold rate data ($(date -u +'%Y-%m-%dT%H:%M:%SZ'))"
+            git push
+          fi
