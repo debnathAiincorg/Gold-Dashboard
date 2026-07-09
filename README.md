@@ -1,13 +1,29 @@
 # Gold Dashboard
 
-Fetches the 22K gold rate per gram from Tanishq, ABP Live, and Times of India,
-and shows it on a small dashboard. Runs on a schedule via GitHub Actions
-(triggered externally by Power Automate) and publishes to GitHub Pages.
+Fetches the 22K gold rate per gram from Tanishq (national) and four
+Kolkata-specific sources -- ABP Live, Times of India, Goodreturns, and
+GoldPriceIndia -- and shows it on a small dashboard. Runs on a schedule via
+GitHub Actions (triggered externally by Power Automate) and publishes to
+GitHub Pages.
+
+| Source | Coverage | Notes |
+|---|---|---|
+| Tanishq | National | Fronted by Cloudflare Bot Management -- the most failure-prone source in CI; retried automatically (see below). |
+| ABP Live | Kolkata | Site states the rate per 10g; converted to per-gram. |
+| Times of India | Kolkata | Already stated per-gram. |
+| Goodreturns | Kolkata | Already stated per-gram. |
+| GoldPriceIndia | Kolkata | Not genuinely city-specific -- this page shows the same figure for Kolkata/Mumbai/Chennai; kept anyway per the original request, flagged via its `note` field. |
 
 ## Architecture
 
-- **`gold_rate.py`** -- scrapes the three sources with Playwright, prints a
-  console summary, and writes `gold_rate_data.json`.
+- **`gold_rate.py`** -- scrapes all five sources with Playwright, prints a
+  console summary, and writes `gold_rate_data.json`. Each source has its own
+  try/except so one broken/blocked source doesn't stop the others. Tanishq
+  gets up to 3 attempts with an 8s backoff between them before being marked
+  failed for the run (see the comment in `main()` for why only Tanishq is
+  retried, and the honest limits of what a retry can fix).
+- **`requirements.txt`** -- just `playwright`; the browser binary itself is
+  installed separately (see Local development below).
 - **`.github/workflows/update-gold-rate.yml`** -- runs `gold_rate.py` in
   GitHub Actions and commits `gold_rate_data.json` back to the repo if it
   changed. Triggered by `repository_dispatch` (external POST, e.g. from Power
@@ -16,7 +32,24 @@ and shows it on a small dashboard. Runs on a schedule via GitHub Actions
   that fetches `gold_rate_data.json` and renders a bar chart + summary table.
   Served by GitHub Pages, which unlike `file://` supports `fetch()` over
   HTTPS with no local server needed. Falls back to an embedded, possibly
-  stale snapshot if opened directly as a local file.
+  stale snapshot if opened directly as a local file. Re-fetches every 5
+  minutes while the tab stays open.
+- **`gold_rate_data.json`** -- the data file both the workflow writes and the
+  dashboard reads; not meant to be hand-edited.
+
+## Local development
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+python gold_rate.py            # prints results, writes gold_rate_data.json
+python gold_rate.py --debug    # also prints each source's matched text before parsing
+```
+
+Tanishq's Cloudflare protection is generally more lenient against a
+residential IP than against GitHub Actions' shared datacenter IPs, so a
+local run succeeding doesn't guarantee the same run will succeed in CI --
+see the note on Tanishq retries above and in the workflow file.
 
 ## 1. Enable GitHub Pages
 
@@ -118,14 +151,25 @@ git push -u origin main
 ### If a run fails
 
 The workflow only fails outright (red X, `::error::` annotation) when **all
-three** sources fail in the same run -- gold_rate.py's own exit code only
-goes non-zero in that case. If just one source breaks (e.g. a site changed
-its markup), the run still succeeds but the workflow adds a `::warning::`
-annotation listing which source(s) failed, and `gold_rate_data.json` simply
-won't include that source for this update.
+five** sources fail in the same run -- gold_rate.py's own exit code only
+goes non-zero in that case. If just one or two sources break (e.g. a site
+changed its markup, or got blocked), the run still succeeds but the workflow
+adds a `::warning::` annotation listing which source(s) failed, and
+`gold_rate_data.json` simply won't include them for this update.
 
 Note that GitHub Actions runners use shared datacenter IP ranges, which
 sites' bot protection (Cloudflare, Akamai) sometimes blocks more
 aggressively than a residential IP -- if a run fails that worked fine
 locally, check the step log first for a 403/blocked response before
 assuming a selector broke.
+
+Tanishq specifically sits behind Cloudflare Bot Management and is the source
+most often affected by this. `gold_rate.py` already retries it up to 3 times
+(with an 8s pause between attempts) before giving up, since a transient
+Cloudflare challenge sometimes clears on a second try. This reduces but does
+not eliminate Tanishq failures in CI -- if Cloudflare decides to hard-block
+the runner's IP for the whole run, every attempt fails the same way and
+Tanishq is reported as an error for that run, same as before. There's no
+code-side fix for that case; re-running the workflow a bit later (a fresh
+run gets a fresh runner, usually with a different IP) is the practical
+workaround.
