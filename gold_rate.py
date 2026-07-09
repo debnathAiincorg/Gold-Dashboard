@@ -24,6 +24,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -41,6 +42,12 @@ from playwright.sync_api import (
 
 NAV_TIMEOUT_MS = 30_000
 SELECTOR_TIMEOUT_MS = 20_000
+
+# Tanishq specifically gets blocked by Cloudflare more often than the other
+# four sources when run from GitHub Actions' shared IP ranges (see the retry
+# loop in main() for why only this source gets retried).
+TANISHQ_MAX_ATTEMPTS = 3
+TANISHQ_RETRY_DELAY_SECONDS = 8
 
 # Written alongside the console output for gold_dashboard.html to read.
 DATA_FILE = Path(__file__).resolve().parent / "gold_rate_data.json"
@@ -73,10 +80,17 @@ def _launch_stealth_context(playwright):
         headless=True,
         args=["--disable-blink-features=AutomationControlled"],
     )
+    # The UA's Chrome version is read off the browser we actually launched
+    # rather than hardcoded. A hardcoded version string quietly goes stale as
+    # Chrome ships new releases (this one drifted from 126 to a build over
+    # 20 versions behind before being caught) and a UA claiming an old Chrome
+    # while the real engine behaves like a current one is itself an
+    # inconsistency bot-detection can key on. browser.version is the actual
+    # bundled Chromium build, so this stays correct automatically.
     context = browser.new_context(
         user_agent=(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+            f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            f"(KHTML, like Gecko) Chrome/{browser.version} Safari/537.36"
         ),
         viewport={"width": 1366, "height": 768},
         locale="en-IN",
@@ -410,25 +424,54 @@ def main():
     args = parse_args()
     results = []  # (label, price_per_gram_or_None, note_or_None, error_or_None)
 
-    # --- Tanishq: existing, verified fetch/extract logic, untouched --------
-    playwright = browser = None
-    try:
-        playwright, browser, page = fetch_rendered_page()
-        price = extract_22k_rate_per_gram(page, debug=args.debug)
-        results.append(("Tanishq", price, None, None))
-    except PlaywrightTimeoutError as exc:
-        results.append(("Tanishq", None, None, f"timed out waiting for the page/rate table to load ({exc})"))
-    except PlaywrightError as exc:
-        results.append(("Tanishq", None, None, f"could not load the page (network/browser error): {exc}"))
-    except ValueError as exc:
-        results.append(("Tanishq", None, None, f"page loaded but the 22K rate could not be found: {exc}"))
-    except Exception as exc:  # noqa: BLE001 - keep one source's failure isolated
-        results.append(("Tanishq", None, None, f"unexpected failure: {exc}"))
-    finally:
-        if browser is not None:
-            browser.close()
-        if playwright is not None:
-            playwright.stop()
+    # --- Tanishq: existing, verified fetch/extract logic, now retried a
+    # couple of times before giving up (everything else here is unchanged).
+    #
+    # Why only Tanishq: it's the one source fronted by Cloudflare Bot
+    # Management, and that appears to be judged more harshly against GitHub
+    # Actions' shared datacenter IP ranges than against a residential IP --
+    # runs that fail once often succeed a few seconds later on a retry,
+    # consistent with a short-lived or probabilistic per-request challenge.
+    #
+    # Honest limitation: this reduces, but cannot eliminate, Tanishq
+    # failures in CI. Cloudflare's decision is made live, per run, by a
+    # third party we don't control -- if it decides to hard-block the
+    # runner's IP for the whole run (as apparently happened in run #8, where
+    # all 5 sources errored together), every attempt below will fail the
+    # same way and Tanishq will still be reported as an error for that run.
+    # There's no code-side fix for that case.
+    tanishq_price = None
+    tanishq_error = None
+    for attempt in range(1, TANISHQ_MAX_ATTEMPTS + 1):
+        playwright = browser = None
+        try:
+            playwright, browser, page = fetch_rendered_page()
+            tanishq_price = extract_22k_rate_per_gram(page, debug=args.debug)
+            tanishq_error = None
+            break
+        except PlaywrightTimeoutError as exc:
+            tanishq_error = f"timed out waiting for the page/rate table to load ({exc})"
+        except PlaywrightError as exc:
+            tanishq_error = f"could not load the page (network/browser error): {exc}"
+        except ValueError as exc:
+            tanishq_error = f"page loaded but the 22K rate could not be found: {exc}"
+        except Exception as exc:  # noqa: BLE001 - keep one source's failure isolated
+            tanishq_error = f"unexpected failure: {exc}"
+        finally:
+            if browser is not None:
+                browser.close()
+            if playwright is not None:
+                playwright.stop()
+
+        if attempt < TANISHQ_MAX_ATTEMPTS:
+            print(
+                f"Tanishq attempt {attempt}/{TANISHQ_MAX_ATTEMPTS} failed "
+                f"({tanishq_error}); retrying in {TANISHQ_RETRY_DELAY_SECONDS}s "
+                "in case it was a transient Cloudflare challenge..."
+            )
+            time.sleep(TANISHQ_RETRY_DELAY_SECONDS)
+
+    results.append(("Tanishq", tanishq_price, None, tanishq_error))
 
     # --- Additional Kolkata sources -----------------------------------------
     for label, url, extractor, note in ADDITIONAL_SOURCES:

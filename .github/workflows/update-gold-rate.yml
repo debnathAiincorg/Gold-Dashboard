@@ -42,7 +42,14 @@ jobs:
       - name: Run gold_rate.py
         id: run_script
         shell: bash
-        timeout-minutes: 5
+        # Worst case (every source slow/blocked, all timeouts maxed out):
+        # Tanishq now retries up to 3x (~50s per attempt + 8s backoff between
+        # = ~166s) plus the other 4 sources at ~50s worst-case each (~200s)
+        # -- ~366s (6.1 min) total. The old 5-minute timeout had ~4.2 min of
+        # worst-case usage before the Tanishq retry was added, so it was
+        # already thin; 8 minutes leaves real headroom for that scenario
+        # while staying well inside the job's 15-minute overall timeout.
+        timeout-minutes: 8
         run: |
           set -o pipefail
           python gold_rate.py | tee gold_rate_output.txt
