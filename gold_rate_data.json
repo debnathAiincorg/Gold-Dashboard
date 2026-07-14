@@ -1,6 +1,12 @@
 {
-  "timestamp": "14-Jul-2026 06:31 AM",
+  "timestamp": "14-Jul-2026 09:30 AM",
   "sources": [
+    {
+      "name": "Tanishq",
+      "rate_per_gram": 13135,
+      "note": null,
+      "scope": "national"
+    },
     {
       "name": "ABP Live",
       "rate_per_gram": 13027.9,
@@ -9,7 +15,7 @@
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 13099,
+      "rate_per_gram": 13090,
       "note": null,
       "scope": "city"
     },
