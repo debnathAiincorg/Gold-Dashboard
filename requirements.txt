@@ -1,3 +1,8 @@
 # pip install -r requirements.txt
 # then run once: playwright install chromium
 playwright>=1.40
+
+# zoneinfo (stdlib) needs an IANA tz database to resolve "Asia/Kolkata";
+# Windows doesn't ship one, unlike the Linux GitHub Actions runner, so this
+# is required there for gold_rate.py's IST timestamp to resolve at all.
+tzdata; sys_platform == "win32"

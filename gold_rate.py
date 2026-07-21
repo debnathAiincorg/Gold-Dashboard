@@ -27,6 +27,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 # Windows terminals often default to a legacy codepage (cp1252) that can't
 # encode the ₹ symbol; force UTF-8 stdout so the output prints instead of
@@ -51,6 +52,10 @@ TANISHQ_RETRY_DELAY_SECONDS = 8
 
 # Written alongside the console output for gold_dashboard.html to read.
 DATA_FILE = Path(__file__).resolve().parent / "gold_rate_data.json"
+
+# GitHub Actions runners default to UTC; localize explicitly so "Last
+# updated" reflects Indian time regardless of the host machine's own timezone.
+IST = ZoneInfo("Asia/Kolkata")
 
 # Whether each source's rate is national or city-specific (Kolkata) -- mirrors
 # the note printed at the bottom of the console output.
@@ -488,7 +493,7 @@ def main():
             results.append((label, None, None, f"unexpected error: {exc}"))
 
     # --- Print combined results, one source at a time ------------------------
-    timestamp = datetime.now().strftime("%d-%b-%Y %I:%M %p")
+    timestamp = datetime.now(IST).strftime("%d-%b-%Y %I:%M %p")
     print(f"22K Gold Rate (per gram) — {timestamp}")
     label_width = max(len(label) for label, *_ in results)
     any_success = False
