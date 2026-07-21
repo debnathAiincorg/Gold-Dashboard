@@ -235,6 +235,7 @@
   </header>
 
   <div class="notice" id="fallback-notice"></div>
+  <div class="notice" id="missing-sources-notice"></div>
 
   <section class="card chart-card">
     <h2>Rate comparison</h2>
@@ -302,6 +303,12 @@
   };
   const SCOPE_LABEL = { national: "National", city: "Kolkata-specific" };
 
+  // Full expected set of sources -- SOURCE_COLOR's keys are the source of
+  // truth since every source needs a fixed chart color anyway. Used to
+  // detect a source silently dropping out of data.sources (fetch failed
+  // for that source this run) so render() can call it out explicitly.
+  const EXPECTED_SOURCES = Object.keys(SOURCE_COLOR);
+
   // How often to re-fetch gold_rate_data.json while the tab stays open.
   // Only applies to the live-fetch path -- see the fetchLiveData() call site.
   const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -337,6 +344,23 @@
     }
 
     const sources = data.sources || [];
+
+    // Independent of the fallback-notice above (that one's about the whole
+    // JSON fetch failing; this one's about individual sources dropping out
+    // of an otherwise-successful fetch) -- both can be visible at once.
+    const presentNames = new Set(sources.map((s) => s.name));
+    const missingSources = EXPECTED_SOURCES.filter((name) => !presentNames.has(name));
+    const missingNotice = document.getElementById("missing-sources-notice");
+    if (missingSources.length > 0) {
+      missingNotice.style.display = "block";
+      const names = missingSources.map((name) => `<code>${name}</code>`).join(", ");
+      missingNotice.innerHTML =
+        `${names}: unavailable in this update (fetch failed) -- showing other sources only.`;
+    } else {
+      missingNotice.style.display = "none";
+      missingNotice.innerHTML = "";
+    }
+
     if (sources.length === 0) {
       document.querySelector(".chart-wrap").innerHTML =
         '<p class="empty-state">No source data available in gold_rate_data.json.</p>';
