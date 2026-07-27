@@ -1,5 +1,5 @@
 {
-  "timestamp": "26-Jul-2026 05:02 PM",
+  "timestamp": "27-Jul-2026 10:02 AM",
   "sources": [
     {
       "name": "ABP Live",
@@ -9,19 +9,19 @@
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 13285,
+      "rate_per_gram": 13284,
       "note": null,
       "scope": "city"
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 13285,
+      "rate_per_gram": 13370,
       "note": null,
       "scope": "city"
     },
     {
       "name": "GoldPriceIndia",
-      "rate_per_gram": 13391,
+      "rate_per_gram": 13394,
       "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages",
       "scope": "city"
     }
