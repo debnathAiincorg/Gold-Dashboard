@@ -1,9 +1,9 @@
 {
-  "timestamp": "13-Aug-2026 05:00 PM",
+  "timestamp": "14-Aug-2026 10:01 AM",
   "sources": [
     {
       "name": "Tanishq",
-      "rate_per_gram": 14265,
+      "rate_per_gram": 14160,
       "note": null,
       "scope": "national"
     },
@@ -15,19 +15,19 @@
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 14220,
+      "rate_per_gram": 14079,
       "note": null,
       "scope": "city"
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 14080,
+      "rate_per_gram": 14015,
       "note": null,
       "scope": "city"
     },
     {
       "name": "GoldPriceIndia",
-      "rate_per_gram": 14308,
+      "rate_per_gram": 14307,
       "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages",
       "scope": "city"
     }
