@@ -1,5 +1,5 @@
 {
-  "timestamp": "22-Aug-2026 05:00 PM",
+  "timestamp": "23-Aug-2026 10:00 AM",
   "sources": [
     {
       "name": "Tanishq",
@@ -27,7 +27,7 @@
     },
     {
       "name": "GoldPriceIndia",
-      "rate_per_gram": 14816,
+      "rate_per_gram": 15059,
       "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages",
       "scope": "city"
     }
