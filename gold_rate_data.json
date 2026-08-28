@@ -1,9 +1,9 @@
 {
-  "timestamp": "28-Aug-2026 03:00 PM",
+  "timestamp": "28-Aug-2026 05:00 PM",
   "sources": [
     {
       "name": "Tanishq",
-      "rate_per_gram": 14695,
+      "rate_per_gram": 14815,
       "note": null,
       "scope": "national"
     },
@@ -21,7 +21,7 @@
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 14650,
+      "rate_per_gram": 14770,
       "note": null,
       "scope": "city"
     },
