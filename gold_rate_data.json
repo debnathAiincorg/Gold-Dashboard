@@ -1,9 +1,9 @@
 {
-  "timestamp": "31-Aug-2026 10:01 AM",
+  "timestamp": "31-Aug-2026 12:01 PM",
   "sources": [
     {
       "name": "Tanishq",
-      "rate_per_gram": 14550,
+      "rate_per_gram": 14415,
       "note": null,
       "scope": "national"
     },
