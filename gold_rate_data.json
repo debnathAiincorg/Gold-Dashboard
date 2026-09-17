@@ -1,5 +1,5 @@
 {
-  "timestamp": "17-Sep-2026 03:01 PM",
+  "timestamp": "17-Sep-2026 05:00 PM",
   "sources": [
     {
       "name": "Tanishq",
@@ -23,6 +23,12 @@
       "name": "Goodreturns",
       "rate_per_gram": 14010,
       "note": null,
+      "scope": "city"
+    },
+    {
+      "name": "GoldPriceIndia",
+      "rate_per_gram": 14171,
+      "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages",
       "scope": "city"
     }
   ]
