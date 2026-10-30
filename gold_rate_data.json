@@ -1,27 +1,27 @@
 {
-  "timestamp": "29-Oct-2026 05:02 PM",
+  "timestamp": "30-Oct-2026 10:02 AM",
   "sources": [
     {
       "name": "ABP Live",
-      "rate_per_gram": 13135.0,
+      "rate_per_gram": 13030.0,
       "note": "converted from per-10g",
       "scope": "city"
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 13195,
+      "rate_per_gram": 13194,
       "note": null,
       "scope": "city"
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 13195,
+      "rate_per_gram": 13040,
       "note": null,
       "scope": "city"
     },
     {
       "name": "GoldPriceIndia",
-      "rate_per_gram": 13301,
+      "rate_per_gram": 13300,
       "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages",
       "scope": "city"
     }
