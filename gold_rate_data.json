@@ -1,6 +1,12 @@
 {
-  "timestamp": "04-Nov-2026 12:01 PM",
+  "timestamp": "04-Nov-2026 03:01 PM",
   "sources": [
+    {
+      "name": "Tanishq",
+      "rate_per_gram": 13140,
+      "note": null,
+      "scope": "national"
+    },
     {
       "name": "ABP Live",
       "rate_per_gram": 12631.5,
@@ -9,13 +15,13 @@
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 12801,
+      "rate_per_gram": 12825,
       "note": null,
       "scope": "city"
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 12825,
+      "rate_per_gram": 13090,
       "note": null,
       "scope": "city"
     },
