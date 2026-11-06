@@ -1,5 +1,5 @@
 {
-  "timestamp": "06-Nov-2026 10:02 AM",
+  "timestamp": "06-Nov-2026 12:01 PM",
   "sources": [
     {
       "name": "ABP Live",
@@ -15,7 +15,7 @@
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 13385,
+      "rate_per_gram": 13150,
       "note": null,
       "scope": "city"
     },
