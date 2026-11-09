@@ -1,21 +1,21 @@
 {
-  "timestamp": "08-Nov-2026 05:01 PM",
+  "timestamp": "09-Nov-2026 10:02 AM",
   "sources": [
     {
       "name": "ABP Live",
-      "rate_per_gram": 13017.3,
+      "rate_per_gram": 12971.0,
       "note": "converted from per-10g",
       "scope": "city"
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 13160,
+      "rate_per_gram": 13159,
       "note": null,
       "scope": "city"
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 13160,
+      "rate_per_gram": 13255,
       "note": null,
       "scope": "city"
     },
