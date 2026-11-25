@@ -1,5 +1,5 @@
 {
-  "timestamp": "25-Nov-2026 12:01 PM",
+  "timestamp": "25-Nov-2026 03:02 PM",
   "sources": [
     {
       "name": "ABP Live",
@@ -9,7 +9,7 @@
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 11716,
+      "rate_per_gram": 11420,
       "note": null,
       "scope": "city"
     },
